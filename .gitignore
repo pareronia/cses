@@ -1,0 +1,27 @@
+##
+## Eclipse
+##
+
+target/
+.settings/
+.project
+.classpath
+
+##
+## Java
+##
+*.class
+*.jar
+module-info.java
+*.launch
+
+##
+## Python
+##
+.venv
+
+##
+## Vim
+##
+*.swp
+*~
