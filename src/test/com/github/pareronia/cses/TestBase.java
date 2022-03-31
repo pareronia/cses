@@ -54,19 +54,21 @@ public abstract class TestBase<T> {
         final File folder = Paths.get(resource.toURI()).toFile();
         return Stream.of(folder.listFiles())
                 .filter(f -> f.getName().endsWith("input.txt"))
+                .filter(f -> useFile(f))
                 .iterator();
+    }
+    
+    protected boolean useFile(final File f) {
+        return true;
     }
 
     private Function<File, String> displayNameGenerator() {
-        return input -> input.getName();
+        return input -> StringUtils.substringBeforeLast(input.getName(), "_");
     }
     
     private ThrowingConsumer<File> testExecutor() {
         return input -> {
             final List<String> result = run(new FileInputStream(input));
-//            System.out.println(input.getName());
-//            result.stream().forEach(System.out::println);
-//            System.out.println("");
             final Path outPath = outputForInput(input.toPath());
             final List<String> expected = Files.readAllLines(outPath).stream()
                     .map(line -> line.stripTrailing())
