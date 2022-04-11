@@ -50,14 +50,15 @@ public class TreeDistancesI {
         final int b = Distances.get(adj, a, 0, 0, dista);
         final int[] distb = new int[n + 1];
         Distances.get(adj, b, 0, 0, distb);
+        final StringBuilder sb = new StringBuilder();
         for (int j = 1; j <= n; j++) {
             if (j > 1) {
-                this.out.print(" ");
+                sb.append(" ");
             }
-            final int ans = Math.max(dista[j], distb[j]);
-            this.out.print(ans);
+            sb.append(Math.max(dista[j], distb[j]));
         }
-        this.out.println();
+        final String ans = sb.toString();
+        this.out.println(ans);
     }
     
     public void solve() {
