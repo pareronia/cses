@@ -10,6 +10,8 @@ import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
@@ -22,10 +24,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.FileAttribute;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Stream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.DynamicTest;
@@ -41,21 +46,48 @@ public abstract class TestBase<T> {
 	}
 
     @TestFactory
-    public Stream<DynamicTest> tests() throws URISyntaxException {
+    public Stream<DynamicTest> tests() throws URISyntaxException, FileNotFoundException, IOException {
         return DynamicTest.stream(
                     allInputFiles(), displayNameGenerator(), testExecutor());
     }
     
-    private Iterator<File> allInputFiles() throws URISyntaxException {
+    private Iterator<File> allInputFiles() throws URISyntaxException, FileNotFoundException, IOException {
         final URL resource = this.klass.getResource(".");
         if (resource == null) {
             return Stream.<File> empty().iterator();
         }
         final File folder = Paths.get(resource.toURI()).toFile();
-        return Stream.of(folder.listFiles())
+        final Stream<File> files = Stream.of(folder.listFiles())
                 .filter(f -> f.getName().endsWith("input.txt"))
-                .filter(f -> useFile(f))
-                .iterator();
+                .filter(this::useFile);
+        final List<File> fromZips = new ArrayList<>();
+        for (final File z : folder.listFiles()) {
+        	if (z.getName().endsWith(".zip")) {
+        		zippedFiles(z).stream().filter(this::useFile).forEach(fromZips::add);
+        	}
+        }
+		return Stream.concat(files, fromZips.stream()).iterator();
+    }
+
+    protected List<File> zippedFiles(final File zipFile) throws FileNotFoundException, IOException {
+    	final List<File> files = new ArrayList<>();
+    	try (ZipInputStream zis = new ZipInputStream(new FileInputStream(zipFile))) {
+    		final Path tmp = Files.createTempDirectory(this.klass.getSimpleName());
+    		ZipEntry ze;
+    		while ((ze = zis.getNextEntry()) != null) {
+    			if (ze.isDirectory() || !(ze.getName().endsWith(".in") || ze.getName().endsWith(".out"))) {
+    				continue;
+    			}
+    			final String name = String.format("%s %s", zipFile.getName(), ze.getName());
+    			final File file = tmp.resolve(name).toFile();
+				file.createNewFile();
+				zis.transferTo(new FileOutputStream(file));
+				if (file.getName().endsWith(".in")) {
+					files.add(file);
+				}
+    		}
+    	}
+    	return files;
     }
     
     protected boolean useFile(final File f) {
@@ -71,16 +103,20 @@ public abstract class TestBase<T> {
             final List<String> result = run(new FileInputStream(input));
             final Path outPath = outputForInput(input.toPath());
             final List<String> expected = Files.readAllLines(outPath).stream()
-                    .map(line -> line.stripTrailing())
+                    .map(String::stripTrailing)
                     .collect(toList());
             assertThat(result, is(expected));
         };
     }
     
     private Path outputForInput(final Path input) {
-        final String outputFileName = StringUtils.substringBefore(
-                        input.getFileName().toString(), "input.txt")
-                + "output.txt";
+        final String fileName = input.getFileName().toString();
+		final String outputFileName;
+		if (fileName.endsWith("input.txt")) {
+			outputFileName = StringUtils.substringBefore(fileName, "input.txt") + "output.txt";
+		} else {
+			outputFileName = StringUtils.substringBefore(fileName, ".in") + ".out";
+		}
         return input.getParent().resolve(outputFileName);
     }
     

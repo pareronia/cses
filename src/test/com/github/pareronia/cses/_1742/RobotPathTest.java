@@ -1,8 +1,11 @@
 package com.github.pareronia.cses._1742;
 
-import java.io.File;
-
 import com.github.pareronia.cses.TestBase;
+
+import org.apache.commons.lang3.StringUtils;
+
+import java.io.File;
+import java.util.Set;
 
 class RobotPathTest extends TestBase<RobotPath> {
 
@@ -12,6 +15,11 @@ class RobotPathTest extends TestBase<RobotPath> {
 
     @Override
     protected boolean useFile(final File f) {
-        return !f.getName().startsWith("test12");
+        final String name = f.getName();
+        final int num =
+                Integer.parseInt(
+                        StringUtils.substringAfterLast(
+                                name.substring(0, name.length() - ".in".length()), " "));
+        return !Set.of(10, 11, 12, 21, 27, 28, 29, 30, 31, 32).contains(num);
     }
 }
